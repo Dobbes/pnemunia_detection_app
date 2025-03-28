@@ -1,0 +1,445 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                Pneumonia Detection Results
+            </div>
+            <div class="card-body">
+                <!-- Enhanced metrics section with explanations -->
+                <div class="metrics-card">
+                    <h5>Model Performance</h5>
+                    <div class="row mt-3">
+                        <div class="col-md-4 text-center">
+                            <div class="metric-container p-3 mb-3">
+                                <div class="metric-value">{{ "%.1f"|format(results.accuracy*100) }}%</div>
+                                <div class="metric-label">Accuracy</div>
+                                <div class="metric-description small text-muted mt-2">
+                                    Percentage of all predictions (both normal and pneumonia) that were correct
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="metric-container p-3 mb-3">
+                                <div class="metric-value">{{ "%.1f"|format(results.sensitivity*100) }}%</div>
+                                <div class="metric-label">Sensitivity</div>
+                                <div class="metric-description small text-muted mt-2">
+                                    Ability to correctly identify pneumonia cases (true positive rate)
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="metric-container p-3 mb-3">
+                                <div class="metric-value">{{ "%.1f"|format(results.specificity*100) }}%</div>
+                                <div class="metric-label">Specificity</div>
+                                <div class="metric-description small text-muted mt-2">
+                                    Ability to correctly identify normal cases (true negative rate)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="metrics-explanation mt-3 p-3 rounded" style="background-color: #252525;">
+                        <h6>How to Interpret These Metrics:</h6>
+                        <ul class="small text-muted">
+                            <li><strong>Accuracy:</strong> Overall correctness. An accuracy of 85% means the model correctly classified 85 out of 100 X-rays.</li>
+                            <li><strong>Sensitivity:</strong> How well the model detects pneumonia. High sensitivity means fewer missed pneumonia cases.</li>
+                            <li><strong>Specificity:</strong> How well the model identifies normal X-rays. High specificity means fewer false pneumonia alarms.</li>
+                        </ul>
+                        <div class="mt-2">
+                            <span class="badge bg-info">Medical context:</span>
+                            <span class="small text-muted">In pneumonia detection, high sensitivity is especially important to avoid missing cases that require treatment.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Visual confusion matrix -->
+                <div class="card mb-4">
+                    <div class="card-header">Confusion Matrix</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <div class="confusion-matrix-visual">
+                                    <table class="table table-bordered confusion-table">
+                                        <thead>
+                                            <tr>
+                                                <th></th>
+                                                <th class="text-center">Predicted Normal</th>
+                                                <th class="text-center">Predicted Pneumonia</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <th>Actual Normal</th>
+                                                <td class="text-center true-negative">
+                                                    <div class="prediction-result correct">
+                                                        <div class="result-count">{{ results.confusion_matrix.true_negative }}</div>
+                                                        <div class="result-label">True Negative</div>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center false-positive">
+                                                    <div class="prediction-result incorrect">
+                                                        <div class="result-count">{{ results.confusion_matrix.false_positive }}</div>
+                                                        <div class="result-label">False Positive</div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <th>Actual Pneumonia</th>
+                                                <td class="text-center false-negative">
+                                                    <div class="prediction-result incorrect">
+                                                        <div class="result-count">{{ results.confusion_matrix.false_negative }}</div>
+                                                        <div class="result-label">False Negative</div>
+                                                    </div>
+                                                </td>
+                                                <td class="text-center true-positive">
+                                                    <div class="prediction-result correct">
+                                                        <div class="result-count">{{ results.confusion_matrix.true_positive }}</div>
+                                                        <div class="result-label">True Positive</div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <h6>Confusion Matrix Explained:</h6>
+                                <ul class="small">
+                                    <li><strong>True Positive:</strong> Correctly diagnosed pneumonia case</li>
+                                    <li><strong>True Negative:</strong> Correctly identified normal X-ray</li>
+                                    <li><strong>False Positive:</strong> Normal X-ray incorrectly flagged as pneumonia</li>
+                                    <li><strong>False Negative:</strong> Missed pneumonia case (diagnosed as normal)</li>
+                                </ul>
+                                <div class="alert alert-info mt-2 small">
+                                    <strong>Clinical Impact:</strong> False negatives (missed pneumonia cases) can be particularly dangerous as they may leave pneumonia untreated.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h5>Test Results</h5>
+                
+                <ul class="nav nav-tabs mb-3" id="resultTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-results" type="button" role="tab" aria-controls="all-results" aria-selected="true">
+                            All ({{ results.normal_results|length + results.pneumonia_results|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="normal-tab" data-bs-toggle="tab" data-bs-target="#normal-results" type="button" role="tab" aria-controls="normal-results" aria-selected="false">
+                            Normal ({{ results.normal_results|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="pneumonia-tab" data-bs-toggle="tab" data-bs-target="#pneumonia-results" type="button" role="tab" aria-controls="pneumonia-results" aria-selected="false">
+                            Pneumonia ({{ results.pneumonia_results|length }})
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="correct-tab" data-bs-toggle="tab" data-bs-target="#correct-results" type="button" role="tab" aria-controls="correct-results" aria-selected="false">
+                            Correct Predictions
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="incorrect-tab" data-bs-toggle="tab" data-bs-target="#incorrect-results" type="button" role="tab" aria-controls="incorrect-results" aria-selected="false">
+                            Incorrect Predictions
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="resultTabsContent">
+                    <!-- All Results Tab -->
+                    <div class="tab-pane fade show active" id="all-results" role="tabpanel" aria-labelledby="all-tab">
+                        <div class="row">
+                            {% set all_results = results.normal_results + results.pneumonia_results %}
+                            {% for result in all_results %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="result-card">
+                                    <div class="d-flex p-3">
+                                        <div class="flex-shrink-0">
+                                            <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                {% if result.actual == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                {% if result.correct %}
+                                                <span class="badge bg-success">Correct</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Incorrect</span>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Normal Results Tab -->
+                    <div class="tab-pane fade" id="normal-results" role="tabpanel" aria-labelledby="normal-tab">
+                        <div class="row">
+                            {% for result in results.normal_results %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="result-card">
+                                    <div class="d-flex p-3">
+                                        <div class="flex-shrink-0">
+                                            <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                <span class="badge bg-info">Normal</span>
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                {% if result.correct %}
+                                                <span class="badge bg-success">Correct</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Incorrect</span>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Pneumonia Results Tab -->
+                    <div class="tab-pane fade" id="pneumonia-results" role="tabpanel" aria-labelledby="pneumonia-tab">
+                        <div class="row">
+                            {% for result in results.pneumonia_results %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="result-card">
+                                    <div class="d-flex p-3">
+                                        <div class="flex-shrink-0">
+                                            <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                {% if result.correct %}
+                                                <span class="badge bg-success">Correct</span>
+                                                {% else %}
+                                                <span class="badge bg-danger">Incorrect</span>
+                                                {% endif %}
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Correct Results Tab -->
+                    <div class="tab-pane fade" id="correct-results" role="tabpanel" aria-labelledby="correct-tab">
+                        <div class="row">
+                            {% set all_results = results.normal_results + results.pneumonia_results %}
+                            {% for result in all_results if result.correct %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="result-card">
+                                    <div class="d-flex p-3">
+                                        <div class="flex-shrink-0">
+                                            <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                {% if result.actual == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                <span class="badge bg-success">Correct</span>
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- Incorrect Results Tab -->
+                    <div class="tab-pane fade" id="incorrect-results" role="tabpanel" aria-labelledby="incorrect-tab">
+                        <div class="row">
+                            {% set all_results = results.normal_results + results.pneumonia_results %}
+                            {% for result in all_results if not result.correct %}
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="result-card">
+                                    <div class="d-flex p-3">
+                                        <div class="flex-shrink-0">
+                                            <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
+                                        </div>
+                                        <div class="flex-grow-1 ms-3">
+                                            <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                {% if result.actual == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                <span class="badge bg-danger">Incorrect</span>
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Try Again</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,34 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+
+# Large datasets and uploads
+chest_xray/
+archive.zip
+*.zip
+*.gz
+*.tar
+#static/uploads/*
+#!static/uploads/.gitkeep
+#static/dataset/*
+#!static/dataset/.gitkeep
+
+# Models and caches
+.cache/
+.huggingface/
+*.pth
+*.h5
+*.model
+*.bin
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
