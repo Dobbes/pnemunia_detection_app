@@ -8,6 +8,37 @@
                 Pneumonia Detection Results
             </div>
             <div class="card-body">
+                <!-- Training summary section -->
+                {% if results.additional_metrics and results.additional_metrics.training_info %}
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        Training Summary
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 text-center">
+                                <div class="metric-container p-3">
+                                    <div class="metric-value">{{ results.additional_metrics.training_info.total_training_images }}</div>
+                                    <div class="metric-label">Total Training Images</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="metric-container p-3">
+                                    <div class="metric-value">{{ results.additional_metrics.training_info.normal_count }}</div>
+                                    <div class="metric-label">Normal Images</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-center">
+                                <div class="metric-container p-3">
+                                    <div class="metric-value">{{ results.additional_metrics.training_info.pneumonia_count }}</div>
+                                    <div class="metric-label">Pneumonia Images</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
                 <!-- Enhanced metrics section with explanations -->
                 <div class="metrics-card">
                     <h5>Model Performance</h5>
@@ -16,7 +47,7 @@
                             <div class="metric-container p-3 mb-3">
                                 <div class="metric-value">{{ "%.1f"|format(results.accuracy*100) }}%</div>
                                 <div class="metric-label">Accuracy</div>
-                                <div class="metric-description small text-muted mt-2">
+                                <div class="metric-description small mt-2">
                                     Percentage of all predictions (both normal and pneumonia) that were correct
                                 </div>
                             </div>
@@ -25,7 +56,7 @@
                             <div class="metric-container p-3 mb-3">
                                 <div class="metric-value">{{ "%.1f"|format(results.sensitivity*100) }}%</div>
                                 <div class="metric-label">Sensitivity</div>
-                                <div class="metric-description small text-muted mt-2">
+                                <div class="metric-description small mt-2">
                                     Ability to correctly identify pneumonia cases (true positive rate)
                                 </div>
                             </div>
@@ -34,23 +65,59 @@
                             <div class="metric-container p-3 mb-3">
                                 <div class="metric-value">{{ "%.1f"|format(results.specificity*100) }}%</div>
                                 <div class="metric-label">Specificity</div>
-                                <div class="metric-description small text-muted mt-2">
+                                <div class="metric-description small mt-2">
                                     Ability to correctly identify normal cases (true negative rate)
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="metrics-explanation mt-3 p-3 rounded" style="background-color: #252525;">
+                    <!-- Additional metrics (precision and F1 score) -->
+                    {% if results.additional_metrics %}
+                    <div class="row mt-2">
+                        <div class="col-md-6 text-center">
+                            <div class="metric-container p-3 mb-3">
+                                <div class="metric-value">{{ "%.1f"|format(results.additional_metrics.precision*100) }}%</div>
+                                <div class="metric-label">Precision</div>
+                                <div class="metric-description small mt-2">
+                                    Percentage of predicted pneumonia cases that are actually pneumonia
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-center">
+                            <div class="metric-container p-3 mb-3">
+                                <div class="metric-value">{{ "%.1f"|format(results.additional_metrics.f1_score*100) }}%</div>
+                                <div class="metric-label">F1 Score</div>
+                                <div class="metric-description small mt-2">
+                                    Harmonic mean of precision and sensitivity (balanced measure)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="metrics-explanation mt-3 p-3 rounded" style="background-color: #252525; color: #e0e0e0;">
                         <h6>How to Interpret These Metrics:</h6>
-                        <ul class="small text-muted">
-                            <li><strong>Accuracy:</strong> Overall correctness. An accuracy of 85% means the model correctly classified 85 out of 100 X-rays.</li>
-                            <li><strong>Sensitivity:</strong> How well the model detects pneumonia. High sensitivity means fewer missed pneumonia cases.</li>
-                            <li><strong>Specificity:</strong> How well the model identifies normal X-rays. High specificity means fewer false pneumonia alarms.</li>
+                        <ul>
+                            <li><strong>Accuracy:</strong> Overall correctness across all cases. An accuracy of 85% means the model correctly classified 85 out of 100 X-rays, regardless of whether they were normal or pneumonia.</li>
+                            <li><strong>Sensitivity:</strong> How well the model detects actual pneumonia cases. High sensitivity means fewer missed pneumonia cases.</li>
+                            <li><strong>Specificity:</strong> How well the model identifies actual normal X-rays. High specificity means fewer false pneumonia diagnoses.</li>
+                            <li><strong>Precision:</strong> Of all cases predicted as pneumonia, what percentage actually have pneumonia. High precision means the model isn't over-diagnosing pneumonia.</li>
+                            <li><strong>F1 Score:</strong> Balances precision and sensitivity. Useful when there's an uneven class distribution.</li>
                         </ul>
-                        <div class="mt-2">
+                        <div class="mt-3 border-start ps-3 border-info">
+                            <h6>Understanding Specificity vs. Accuracy: An Example</h6>
+                            <p>Consider a scenario where 80 out of 100 patients are healthy (normal) and 20 have pneumonia:</p>
+                            <ul>
+                                <li>A model with high accuracy (90%) might correctly diagnose 90 out of 100 cases overall.</li>
+                                <li>However, if it misclassifies 10 out of 80 healthy patients as having pneumonia, its specificity would be only 70/80 = 87.5%.</li>
+                                <li>This means the model has a tendency to "over-diagnose" pneumonia in healthy patients.</li>
+                                <li>High specificity is crucial to prevent unnecessary treatments, stress, and medical costs from false positive diagnoses.</li>
+                            </ul>
+                        </div>
+                        <div class="mt-3">
                             <span class="badge bg-info">Medical context:</span>
-                            <span class="small text-muted">In pneumonia detection, high sensitivity is especially important to avoid missing cases that require treatment.</span>
+                            <span>In pneumonia detection, high sensitivity is especially important to avoid missing cases that require treatment, while high specificity helps prevent unnecessary interventions.</span>
                         </div>
                     </div>
                 </div>
@@ -107,14 +174,14 @@
                             </div>
                             <div class="col-md-5">
                                 <h6>Confusion Matrix Explained:</h6>
-                                <ul class="small">
-                                    <li><strong>True Positive:</strong> Correctly diagnosed pneumonia case</li>
-                                    <li><strong>True Negative:</strong> Correctly identified normal X-ray</li>
-                                    <li><strong>False Positive:</strong> Normal X-ray incorrectly flagged as pneumonia</li>
-                                    <li><strong>False Negative:</strong> Missed pneumonia case (diagnosed as normal)</li>
+                                <ul>
+                                    <li><strong>True Positive (TP):</strong> Correctly diagnosed pneumonia case</li>
+                                    <li><strong>True Negative (TN):</strong> Correctly identified normal X-ray</li>
+                                    <li><strong>False Positive (FP):</strong> Normal X-ray incorrectly flagged as pneumonia</li>
+                                    <li><strong>False Negative (FN):</strong> Missed pneumonia case (diagnosed as normal)</li>
                                 </ul>
-                                <div class="alert alert-info mt-2 small">
-                                    <strong>Clinical Impact:</strong> False negatives (missed pneumonia cases) can be particularly dangerous as they may leave pneumonia untreated.
+                                <div class="alert alert-info mt-2">
+                                    <strong>Clinical Impact:</strong> False negatives (missed pneumonia cases) can be particularly dangerous as they may leave pneumonia untreated. False positives may lead to unnecessary antibiotic use and medical costs.
                                 </div>
                             </div>
                         </div>
@@ -165,6 +232,41 @@
                                         </div>
                                         <div class="flex-grow-1 ms-3">
                                             <h6 class="mb-1">{{ result.filename }}</h6>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Actual:</span> 
+                                                {% if result.actual == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                            </p>
+                                            <p class="mb-0">
+                                                <span class="fw-bold">Predicted:</span> 
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <span class="badge bg-warning text-dark">Pneumonia</span>
+                                                {% else %}
+                                                <span class="badge bg-info">Normal</span>
+                                                {% endif %}
+                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
+                                            </p>
+                                            <p class="mb-0 mt-1">
+                                                <span class="fw-bold">Diagnosis:</span>
+                                                <span class="badge bg-danger">Incorrect</span>
+                                            </p>
+                                            
+                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
+                                                {% if result.predicted == "PNEUMONIA" %}
+                                                <div class="progress-bar bg-warning" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% else %}
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: {{ result.confidence*100 }}%;" 
+                                                     aria-valuenow="{{ result.confidence*100 }}" 
+                                                     aria-valuemin="0" aria-valuemax="100"></div>
+                                                {% endif %}
+                                            </div><h6 class="mb-1">{{ result.filename }}</h6>
                                             <p class="mb-0">
                                                 <span class="fw-bold">Actual:</span> 
                                                 {% if result.actual == "PNEUMONIA" %}
@@ -390,56 +492,3 @@
                                             <img src="{{ url_for('static', filename=result.path) }}" alt="X-ray" class="result-image">
                                         </div>
                                         <div class="flex-grow-1 ms-3">
-                                            <h6 class="mb-1">{{ result.filename }}</h6>
-                                            <p class="mb-0">
-                                                <span class="fw-bold">Actual:</span> 
-                                                {% if result.actual == "PNEUMONIA" %}
-                                                <span class="badge bg-warning text-dark">Pneumonia</span>
-                                                {% else %}
-                                                <span class="badge bg-info">Normal</span>
-                                                {% endif %}
-                                            </p>
-                                            <p class="mb-0">
-                                                <span class="fw-bold">Predicted:</span> 
-                                                {% if result.predicted == "PNEUMONIA" %}
-                                                <span class="badge bg-warning text-dark">Pneumonia</span>
-                                                {% else %}
-                                                <span class="badge bg-info">Normal</span>
-                                                {% endif %}
-                                                <span class="ms-1 small">({{ "%.1f"|format(result.confidence*100) }}% confidence)</span>
-                                            </p>
-                                            <p class="mb-0 mt-1">
-                                                <span class="fw-bold">Diagnosis:</span>
-                                                <span class="badge bg-danger">Incorrect</span>
-                                            </p>
-                                            
-                                            <div class="progress mt-2" style="height: 8px; background-color: #333;">
-                                                {% if result.predicted == "PNEUMONIA" %}
-                                                <div class="progress-bar bg-warning" role="progressbar" 
-                                                     style="width: {{ result.confidence*100 }}%;" 
-                                                     aria-valuenow="{{ result.confidence*100 }}" 
-                                                     aria-valuemin="0" aria-valuemax="100"></div>
-                                                {% else %}
-                                                <div class="progress-bar bg-info" role="progressbar" 
-                                                     style="width: {{ result.confidence*100 }}%;" 
-                                                     aria-valuenow="{{ result.confidence*100 }}" 
-                                                     aria-valuemin="0" aria-valuemax="100"></div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="mt-4">
-                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Try Again</a>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}

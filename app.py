@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+import cv2  # For histogram equalization and image processing
 import os
 import random
 import numpy as np
@@ -12,7 +13,7 @@ import matplotlib.pyplot as plt
 import io
 import base64
 from werkzeug.utils import secure_filename
-from model_helper import load_huggingface_model, preprocess_image, predict_pneumonia, fine_tune_model, evaluate_dataset
+from model_helper import load_huggingface_model, preprocess_image, predict_pneumonia, fine_tune_model, evaluate_dataset, apply_histogram_equalization
 
 app = Flask(__name__)
 app.secret_key = 'pneumonia_detection_app'
@@ -43,7 +44,7 @@ EXAMPLE_IMAGES = [
     "pneumonia_example_4.jpeg"
 ]
 
-def get_pneumonia_images(limit=8):
+def get_pneumonia_images(limit=16):
     """Get a random selection of pneumonia positive images from the dataset"""
     pneumonia_dir = os.path.join('chest_xray', 'train', 'PNEUMONIA')
     
@@ -67,6 +68,30 @@ def get_pneumonia_images(limit=8):
     
     return selected_images
 
+def get_normal_images(limit=16):
+    """Get a random selection of normal (non-pneumonia) images from the dataset"""
+    normal_dir = os.path.join('chest_xray', 'train', 'NORMAL')
+    
+    if not os.path.exists(normal_dir):
+        # For testing/demo, return sample filenames
+        return [f"sample_normal_{i}.jpeg" for i in range(1, limit+1)]
+    
+    all_images = [f for f in os.listdir(normal_dir) if f.endswith(('.jpeg', '.jpg', '.png'))]
+    selected_images = random.sample(all_images, min(limit, len(all_images)))
+    
+    # Copy selected images to static folder for display
+    for img in selected_images:
+        src_path = os.path.join(normal_dir, img)
+        dst_path = os.path.join(app.config['DATASET_FOLDER'], img)
+        
+        # Copy if doesn't exist already
+        if not os.path.exists(dst_path):
+            with open(src_path, 'rb') as src_file:
+                with open(dst_path, 'wb') as dst_file:
+                    dst_file.write(src_file.read())
+    
+    return selected_images
+
 def create_model():
     """Create a HuggingFace model for pneumonia detection"""
     return load_huggingface_model()
@@ -76,8 +101,37 @@ def evaluate_model(model, processor, selected_images):
     Evaluate the model on the test set using the selected training images
     In a real scenario, we would fine-tune the model on these images
     """
-    # In a real application, we would train the model on the selected images
-    # For demonstration, we'll just evaluate the pre-trained model
+    # Fine-tune the model on selected images first
+    # Get full paths for selected images
+    training_images = []
+    for img in selected_images:
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], img)
+        if os.path.exists(filepath):
+            training_images.append(filepath)
+    
+    # Only fine-tune if we have training images
+    if training_images:
+        # Analyze the class distribution
+        normal_count = sum(1 for img in training_images if ('normal' in img.lower()))
+        pneumonia_count = len(training_images) - normal_count
+        
+        # Calculate class weights to handle imbalance
+        class_weights = None
+        if normal_count > 0 and pneumonia_count > 0:
+            total = normal_count + pneumonia_count
+            normal_weight = total / (2 * normal_count)
+            pneumonia_weight = total / (2 * pneumonia_count)
+            class_weights = [normal_weight, pneumonia_weight]
+            
+        # Fine-tune the model
+        print(f"Fine-tuning model with {len(training_images)} images...")
+        model = fine_tune_model(
+            model, 
+            processor, 
+            training_images, 
+            num_epochs=8,  # Increased from 3 to 8
+            class_weights=class_weights
+        )
     
     # Set up paths
     normal_dir = os.path.join('chest_xray', 'test', 'NORMAL')
@@ -90,17 +144,21 @@ def evaluate_model(model, processor, selected_images):
         os.makedirs(normal_dir, exist_ok=True)
         os.makedirs(pneumonia_dir, exist_ok=True)
     
-    # Process normal images
+    # Process normal images - increased to 30
     normal_results = []
     if os.path.exists(normal_dir):
         normal_files = [f for f in os.listdir(normal_dir) if f.endswith(('.jpeg', '.jpg', '.png'))]
-        normal_files = normal_files[:10]  # Limit to 10 for demo
+        normal_files = normal_files[:30]  # Increased limit to 30 for better evaluation
         
         for img_file in normal_files:
             img_path = os.path.join(normal_dir, img_file)
             try:
+                # Apply histogram equalization for better contrast
                 image = Image.open(img_path).convert('RGB')
-                inputs = processor(images=image, return_tensors="pt")
+                processed_image = apply_histogram_equalization(image)
+                
+                # Process with model
+                inputs = processor(images=processed_image, return_tensors="pt")
                 outputs = model(**inputs)
                 prediction = torch.argmax(outputs.logits, dim=1).item()
                 
@@ -108,8 +166,10 @@ def evaluate_model(model, processor, selected_images):
                 static_path = os.path.join(app.config['DATASET_FOLDER'], img_file)
                 image.save(static_path)
                 
-                # Extract confidence (simulating for demo purposes)
-                confidence = 0.7 + 0.25 * random.random() if prediction == 0 else 0.5 * random.random()
+                # Extract confidence 
+                logits = outputs.logits
+                predictions = torch.nn.functional.softmax(logits, dim=1)
+                confidence = predictions[0][prediction].item()
                 
                 normal_results.append({
                     'filename': img_file,
@@ -122,17 +182,21 @@ def evaluate_model(model, processor, selected_images):
             except Exception as e:
                 print(f"Error processing {img_file}: {e}")
     
-    # Process pneumonia images
+    # Process pneumonia images - increased to 30
     pneumonia_results = []
     if os.path.exists(pneumonia_dir):
         pneumonia_files = [f for f in os.listdir(pneumonia_dir) if f.endswith(('.jpeg', '.jpg', '.png'))]
-        pneumonia_files = pneumonia_files[:10]  # Limit to 10 for demo
+        pneumonia_files = pneumonia_files[:30]  # Increased limit to 30 for better evaluation
         
         for img_file in pneumonia_files:
             img_path = os.path.join(pneumonia_dir, img_file)
             try:
+                # Apply histogram equalization for better contrast
                 image = Image.open(img_path).convert('RGB')
-                inputs = processor(images=image, return_tensors="pt")
+                processed_image = apply_histogram_equalization(image)
+                
+                # Process with model
+                inputs = processor(images=processed_image, return_tensors="pt")
                 outputs = model(**inputs)
                 prediction = torch.argmax(outputs.logits, dim=1).item()
                 
@@ -140,8 +204,10 @@ def evaluate_model(model, processor, selected_images):
                 static_path = os.path.join(app.config['DATASET_FOLDER'], img_file)
                 image.save(static_path)
                 
-                # Extract confidence (simulating for demo purposes)
-                confidence = 0.7 + 0.25 * random.random() if prediction == 1 else 0.5 * random.random()
+                # Extract confidence
+                logits = outputs.logits
+                predictions = torch.nn.functional.softmax(logits, dim=1)
+                confidence = predictions[0][prediction].item()
                 
                 pneumonia_results.append({
                     'filename': img_file,
@@ -170,44 +236,79 @@ def evaluate_model(model, processor, selected_images):
     sensitivity = true_positive / len(pneumonia_results) if len(pneumonia_results) > 0 else 0
     specificity = true_negative / len(normal_results) if len(normal_results) > 0 else 0
     
+    # Calculate additional metrics
+    precision = true_positive / (true_positive + false_positive) if (true_positive + false_positive) > 0 else 0
+    f1_score = 2 * true_positive / (2 * true_positive + false_positive + false_negative) if (2 * true_positive + false_positive + false_negative) > 0 else 0
+    
     return {
         'normal_results': normal_results,
         'pneumonia_results': pneumonia_results,
         'accuracy': accuracy,
         'sensitivity': sensitivity,
         'specificity': specificity,
+        'precision': precision,  # Added precision metric
+        'f1_score': f1_score,    # Added F1-score metric
         'confusion_matrix': {
             'true_positive': true_positive,
             'false_negative': false_negative,
             'false_positive': false_positive,
             'true_negative': true_negative
+        },
+        'training_info': {       # Added training information
+            'total_training_images': len(training_images),
+            'normal_count': sum(1 for img in training_images if 'normal' in img.lower()),
+            'pneumonia_count': sum(1 for img in training_images if 'pneumonia' in img.lower() or ('person' in img.lower() and ('bacteria' in img.lower() or 'virus' in img.lower())))
         }
     }
 
 @app.route('/')
 def index():
-    """Main page - display random pneumonia images for selection"""
-    pneumonia_images = get_pneumonia_images(limit=8)
-    return render_template('index.html', pneumonia_images=pneumonia_images)
+    """Main page - display random pneumonia and normal images for selection"""
+    pneumonia_images = get_pneumonia_images(limit=16)
+    normal_images = get_normal_images(limit=16)
+    return render_template('index.html', pneumonia_images=pneumonia_images, normal_images=normal_images)
 
 @app.route('/upload', methods=['POST'])
 def upload():
     """Handle uploaded images"""
     try:
-        selected_images = request.files.getlist('images')
+        # Get images from POST request
+        image_files = request.files.getlist('images')
         
-        if not selected_images or all(not img.filename for img in selected_images):
-            return jsonify({'error': 'No images selected'}), 400
+        # Check for form-data with image filenames for images selected from the grid
+        selected_filenames = request.form.getlist('selected_images[]')
         
-        # Save uploaded images
         filenames = []
-        for img in selected_images:
+        
+        # Process uploaded files
+        for img in image_files:
             if img and img.filename:
                 filename = secure_filename(img.filename)
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 img.save(filepath)
                 filenames.append(filename)
         
+        # Process selected filenames from the grid
+        for filename in selected_filenames:
+            if filename:
+                # Make sure it's not a path traversal attempt
+                safe_filename = os.path.basename(filename)
+                
+                # Copy from dataset folder to upload folder
+                src_path = os.path.join(app.config['DATASET_FOLDER'], safe_filename)
+                dst_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_filename)
+                
+                # Only copy if it exists
+                if os.path.exists(src_path):
+                    with open(src_path, 'rb') as src_file:
+                        with open(dst_path, 'wb') as dst_file:
+                            dst_file.write(src_file.read())
+                    filenames.append(safe_filename)
+        
+        # Check if we have any images to process
+        if not filenames:
+            return jsonify({'error': 'No images selected'}), 400
+            
         # Generate a unique ID for this session
         session_id = str(uuid.uuid4())
         session['session_id'] = session_id
@@ -317,6 +418,18 @@ def results(session_id):
         return redirect(url_for('index'))
     
     results = RESULTS_CACHE[session_id]
+    
+    # Add additional metrics to display
+    results['additional_metrics'] = {
+        'precision': results.get('precision', 0),
+        'f1_score': results.get('f1_score', 0),
+        'training_info': results.get('training_info', {
+            'total_training_images': 0,
+            'normal_count': 0,
+            'pneumonia_count': 0
+        })
+    }
+    
     return render_template('results.html', results=results)
 
 if __name__ == '__main__':
