@@ -294,7 +294,7 @@ def evaluate_dataset(model, processor, dataset_path):
                     'predicted': prediction['class'],
                     'confidence': prediction['confidence'],
                     'correct': is_correct,
-                    'path': os.path.join('dataset', os.path.basename(img_path))
+                    'path': f'dataset/{os.path.basename(img_path)}'
                 })
             except Exception as e:
                 print(f"Error processing normal image {img_file}: {e}")
@@ -328,7 +328,7 @@ def evaluate_dataset(model, processor, dataset_path):
                     'predicted': prediction['class'],
                     'confidence': prediction['confidence'],
                     'correct': is_correct,
-                    'path': os.path.join('dataset', os.path.basename(img_path))
+                    'path': f'dataset/{os.path.basename(img_path)}'
                 })
             except Exception as e:
                 print(f"Error processing pneumonia image {img_file}: {e}")

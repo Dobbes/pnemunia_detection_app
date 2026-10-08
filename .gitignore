@@ -32,3 +32,10 @@ archive.zip
 .idea/
 .vscode/
 *.swp
+
+# Local documentation/demo artifacts (screenshots in docs/ are tracked)
+.local/
+static/images/sample_normal.jpg
+static/images/sample_pneumonia.jpg
+static/dataset/demo_*
+static/uploads/demo_*

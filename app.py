@@ -177,7 +177,7 @@ def evaluate_model(model, processor, selected_images):
                     'predicted': 'PNEUMONIA' if prediction == 1 else 'NORMAL',
                     'correct': prediction == 0,
                     'confidence': confidence,
-                    'path': os.path.join('dataset', img_file)
+                    'path': f'dataset/{img_file}'
                 })
             except Exception as e:
                 print(f"Error processing {img_file}: {e}")
@@ -215,7 +215,7 @@ def evaluate_model(model, processor, selected_images):
                     'predicted': 'PNEUMONIA' if prediction == 1 else 'NORMAL',
                     'correct': prediction == 1,
                     'confidence': confidence,
-                    'path': os.path.join('dataset', img_file)
+                    'path': f'dataset/{img_file}'
                 })
             except Exception as e:
                 print(f"Error processing {img_file}: {e}")

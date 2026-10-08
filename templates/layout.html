@@ -113,6 +113,12 @@
             height: 80px;
             object-fit: cover;
         }
+        .result-card .flex-grow-1 {
+            min-width: 0;
+        }
+        .result-card h6 {
+            overflow-wrap: anywhere;
+        }
         .correct {
             color: #10b981;
         }
@@ -235,7 +241,7 @@
         {% block content %}{% endblock %}
     </div>
 
-    <footer class="fixed-bottom py-2" style="background-color: #1a1a1a; border-top: 1px solid #333;">
+    <footer class="py-2 mt-4" style="background-color: #1a1a1a; border-top: 1px solid #333;">
         <div class="container text-center">
             <small>&copy; 2025 Pneumonia Detection App</small>
         </div>
